@@ -1,0 +1,133 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background-color: #ffffff;
+  --text-color: #111827;
+  --primary-color: #4f46e5;
+  --secondary-bg: #f3f4f6;
+  --card-bg: #ffffff;
+  --border-color: #e5e7eb;
+}
+
+:root.dark {
+  --background-color: #111827;
+  --text-color: #ffffff;
+  --primary-color: #818cf8;
+  --secondary-bg: #1f2937;
+  --card-bg: #1f2937;
+  --border-color: #374151;
+}
+
+:root.blue {
+  --background-color: #dbeafe;
+  --text-color: #1e3a8a;
+  --primary-color: #2563eb;
+  --secondary-bg: #bfdbfe;
+  --card-bg: #ffffff;
+  --border-color: #93c5fd;
+}
+
+:root.green {
+  --background-color: #dcfce7;
+  --text-color: #14532d;
+  --primary-color: #16a34a;
+  --secondary-bg: #bbf7d0;
+  --card-bg: #ffffff;
+  --border-color: #86efac;
+}
+
+body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.bg-white {
+  background-color: var(--card-bg);
+}
+
+.bg-gray-50 {
+  background-color: var(--secondary-bg);
+}
+
+.bg-gray-100 {
+  background-color: var(--secondary-bg);
+}
+
+.text-gray-500 {
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+.text-gray-700 {
+  color: var(--text-color);
+  opacity: 0.9;
+}
+
+.text-gray-900 {
+  color: var(--text-color);
+}
+
+.border-gray-200 {
+  border-color: var(--border-color);
+}
+
+.border-gray-300 {
+  border-color: var(--border-color);
+}
+
+.bg-indigo-50 {
+  background-color: color-mix(in srgb, var(--primary-color) 5%, transparent);
+}
+
+.bg-indigo-100 {
+  background-color: color-mix(in srgb, var(--primary-color) 10%, transparent);
+}
+
+.bg-indigo-600 {
+  background-color: var(--primary-color);
+}
+
+.hover\:bg-indigo-700:hover {
+  background-color: var(--primary-color);
+  filter: brightness(0.9);
+}
+
+.text-indigo-600 {
+  color: var(--primary-color);
+}
+
+.hover\:text-indigo-600:hover {
+  color: var(--primary-color);
+}
+
+.border-indigo-500 {
+  border-color: var(--primary-color);
+}
+
+.focus\:ring-indigo-500:focus {
+  --tw-ring-color: var(--primary-color);
+}
+
+.shadow-md {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Dark mode adjustments */
+:root.dark .shadow-md {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+}
+
+:root.dark .bg-red-50 {
+  background-color: rgb(153 27 27 / 0.3);
+}
+
+:root.dark .border-red-200 {
+  border-color: rgb(153 27 27 / 0.5);
+}
+
+:root.dark .text-red-700 {
+  color: rgb(254 202 202);
+}
