@@ -70,16 +70,15 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
     setParentQuestion(parent || null);
 
     // Get subtopics
-    const subtopics = questions.filter(q => q.parent_id === parentId);
     const questionsWithPositions = subtopics.map(q => ({
-      ...q,
-      board_position: q.board_position || {
-        x: Math.random() * 600 + 200,
-        y: Math.random() * 400 + 300,
-        width: 320,
-        height: 240
-      }
-    }));
+  ...q,
+  board_position: q.board_position || { // Добавляем позицию по умолчанию
+    x: Math.random() * 600 + 200,
+    y: Math.random() * 400 + 300,
+    width: 320,
+    height: 240
+  }
+}));
     setBoardQuestions(questionsWithPositions);
   }, [questions, parentId]);
 
