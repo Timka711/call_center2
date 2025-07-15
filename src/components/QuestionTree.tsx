@@ -323,15 +323,13 @@ export function QuestionTree() {
                       {new Date(question.created_at).toLocaleDateString('ru-RU')}
                     </span>
                     
-                    {hasSubtopics(question.id) && (
-                      <button
-                        onClick={() => handleQuestionClick(question)}
-                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
-                      >
-                        <ChevronRight className="w-4 h-4 mr-1" />
-                        Открыть подтемы
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleQuestionClick(question)}
+                      className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
+                    >
+                      <ChevronRight className="w-4 h-4 mr-1" />
+                      {hasSubtopics(question.id) ? 'Открыть подтемы' : 'Открыть доску'}
+                    </button>
                   </div>
                 </div>
               </div>
