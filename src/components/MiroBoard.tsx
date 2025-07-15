@@ -256,7 +256,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
               width: 320,
               height: 240
             }
-          },
+          }
         ]);
 
       if (error) throw error;
@@ -349,20 +349,254 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
         .eq('id', topicId);
 
       if (error) throw error;
-            </div>
-          ))}
+
+      onUpdateQuestions();
+      setPositioningImage(null);
+    } catch (err) {
+      console.error('Error updating image positioning:', err);
+      setError('Failed to update image positioning. Please try again.');
+    }
+  };
+
+  return (
+    <div 
+      ref={boardRef}
+      className="relative w-full h-full overflow-hidden bg-gray-100"
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseDown={handleBoardMouseDown}
+      onWheel={handleWheel}
+    >
+      {/* Controls */}
+      <div className="absolute top-4 left-4 flex gap-2 z-10">
+        <button 
+          onClick={resetView}
+          className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
+          title="Reset View"
+        >
+          <RotateCw size={20} />
+        </button>
+        <button 
+          onClick={() => setZoom(prev => Math.min(3, prev * 1.2))}
+          className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
+          title="Zoom In"
+        >
+          <ZoomIn size={20} />
+        </button>
+        <button 
+          onClick={() => setZoom(prev => Math.max(0.1, prev * 0.8))}
+          className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
+          title="Zoom Out"
+        >
+          <ZoomOut size={20} />
+        </button>
+        <button 
+          onClick={fitToScreen}
+          className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
+          title="Fit to Screen"
+        >
+          <Move size={20} />
+        </button>
+        <button 
+          onClick={() => setShowGrid(!showGrid)}
+          className={`p-2 rounded-lg shadow hover:bg-gray-50 ${showGrid ? 'bg-blue-100' : 'bg-white'}`}
+          title="Toggle Grid"
+        >
+          <Grid size={20} />
+        </button>
+      </div>
+
+      {/* Add Question Button */}
+      <div className="absolute top-4 right-4 z-10">
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600"
+        >
+          <Plus size={20} />
+          Add Question
+        </button>
+      </div>
+
+      {/* Add Question Form */}
+      {showAddForm && (
+        <div className="absolute top-16 right-4 w-80 bg-white rounded-lg shadow-lg p-4 z-20">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-medium">Add New Question</h3>
+            <button onClick={() => setShowAddForm(false)} className="text-gray-500 hover:text-gray-700">
+              <X size={20} />
+            </button>
+          </div>
+          <textarea
+            value={newQuestionContent}
+            onChange={(e) => setNewQuestionContent(e.target.value)}
+            className="w-full h-32 p-2 border rounded-lg mb-4"
+            placeholder="Enter your question..."
+          />
+          <button
+            onClick={handleAddQuestion}
+            className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            Add Question
+          </button>
+          {error && <div className="mt-2 text-red-500 text-sm">{error}</div>}
         </div>
+      )}
+
+      {/* Grid */}
+      {showGrid && (
+        <div 
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: 'linear-gradient(to right, #e5e7eb 1px, transparent 1px), linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)',
+            backgroundSize: `${50 * zoom}px ${50 * zoom}px`,
+            transform: `translate(${pan.x}px, ${pan.y}px)`
+          }}
+        />
+      )}
+
+      {/* Questions */}
+      <div 
+        className="absolute inset-0"
+        style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
+        }}
+      >
+        {boardQuestions.map((question) => (
+          <div
+            key={question.id}
+            className={`absolute bg-white rounded-lg shadow-lg overflow-hidden cursor-move
+              ${draggedItem === question.id ? 'shadow-xl z-10' : ''}
+              ${isResizing === question.id ? 'select-none' : ''}`}
+            style={{
+              left: question.board_position!.x,
+              top: question.board_position!.y,
+              width: question.board_position!.width,
+              height: question.board_position!.height,
+              transform: `scale(${1 / zoom})`,
+              transformOrigin: '0 0'
+            }}
+            onMouseDown={(e) => handleMouseDown(e, question.id)}
+          >
+            {/* Question Content */}
+            <div className="p-4 h-full flex flex-col">
+              {editingQuestion === question.id ? (
+                <div className="flex-1">
+                  <input
+                    value={editingContent}
+                    onChange={(e) => setEditingContent(e.target.value)}
+                    className="w-full p-2 border rounded mb-2"
+                    placeholder="Question content..."
+                  />
+                  <textarea
+                    value={editingDescription}
+                    onChange={(e) => setEditingDescription(e.target.value)}
+                    className="w-full h-24 p-2 border rounded"
+                    placeholder="Description..."
+                  />
+                  <div className="flex justify-end gap-2 mt-2">
+                    <button
+                      onClick={() => setEditingQuestion(null)}
+                      className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleUpdateQuestion(question.id)}
+                      className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <h3 className="font-medium mb-2">{question.content}</h3>
+                  <p className="text-sm text-gray-600 flex-1">{question.description}</p>
+                </>
+              )}
+
+              {/* Actions */}
+              <div className="flex justify-between items-center mt-4">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setEditingQuestion(question.id);
+                      setEditingContent(question.content);
+                      setEditingDescription(question.description);
+                    }}
+                    className="p-1 text-gray-500 hover:text-gray-700"
+                    title="Edit"
+                  >
+                    <Edit size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteQuestion(question.id)}
+                    className="p-1 text-gray-500 hover:text-red-500"
+                    title="Delete"
+                  >
+                    <Trash size={16} />
+                  </button>
+                  <button
+                    onClick={() => setEditingImage(question.id)}
+                    className="p-1 text-gray-500 hover:text-gray-700"
+                    title="Add/Edit Image"
+                  >
+                    <ImageIcon size={16} />
+                  </button>
+                  {question.image_url && (
+                    <button
+                      onClick={() => setPositioningImage(question.id)}
+                      className="p-1 text-gray-500 hover:text-gray-700"
+                      title="Image Positioning"
+                    >
+                      <Settings size={16} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowForm(question.id)}
+                    className="p-1 text-gray-500 hover:text-gray-700"
+                    title="View Form"
+                  >
+                    <Eye size={16} />
+                  </button>
+                  <button
+                    onClick={() => setShowFormSettings(question.id)}
+                    className="p-1 text-gray-500 hover:text-gray-700"
+                    title="Form Settings"
+                  >
+                    <FormInput size={16} />
+                  </button>
+                </div>
+                {hasSubtopics(question.id) && onNavigateToSubboard && (
+                  <button
+                    onClick={() => onNavigateToSubboard(question.id)}
+                    className="p-1 text-orange-500 hover:text-orange-600"
+                    title="Open Subtopics"
+                  >
+                    <ArrowRight size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Resize Handles */}
+            <div
+              className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
+              onMouseDown={(e) => handleResize(question.id, 'bottom-right', e)}
+            />
+          </div>
+        ))}
       </div>
 
       {/* Instructions */}
       <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 text-xs text-gray-600 max-w-xs">
-        <div className="font-medium mb-1">Управление:</div>
-        <div>• Перетаскивайте карточки для перемещения</div>
-        <div>• Используйте колесо мыши для масштабирования</div>
-        <div>• Перетаскивайте фон для панорамирования</div>
-        <div>• Тяните за углы карточек для изменения размера</div>
-        <div>• Наведите на карточку для действий</div>
-        <div>• Оранжевая кнопка → открыть подтемы</div>
+        <div className="font-medium mb-1">Controls:</div>
+        <div>• Drag cards to move them</div>
+        <div>• Use mouse wheel to zoom</div>
+        <div>• Drag background to pan</div>
+        <div>• Drag corners to resize cards</div>
+        <div>• Hover over cards for actions</div>
+        <div>• Orange button → open subtopics</div>
       </div>
 
       {/* Modals */}
@@ -382,6 +616,15 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
           initialTemplate={boardQuestions.find(q => q.id === showFormSettings)?.answer_template || ''}
           onClose={() => setShowFormSettings(null)}
           onUpdate={onUpdateQuestions}
+        />
+      )}
+
+      {editingImage !== null && (
+        <ImageUpload
+          questionId={editingImage}
+          currentImageUrl={boardQuestions.find(q => q.id === editingImage)?.image_url || ''}
+          onSave={updateTopicImage}
+          onClose={() => setEditingImage(null)}
         />
       )}
 
