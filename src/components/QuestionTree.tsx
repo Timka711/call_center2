@@ -105,13 +105,19 @@ export function QuestionTree() {
   }
 
   const handleQuestionClick = (question: Question) => {
-  const newBreadcrumbs = [...breadcrumbs, question];
-  setBreadcrumbs(newBreadcrumbs);
-  setSelectedQuestion(question.id);
-  
-  // Всегда добавляем вопрос в стек досок
-  setBoardStack(prev => [...prev, question.id]); 
-};
+    if (hasSubtopics(question.id)) {
+      // If question has subtopics, show board
+      const newBreadcrumbs = [...breadcrumbs, question];
+      setBreadcrumbs(newBreadcrumbs);
+      setSelectedQuestion(question.id);
+      setBoardStack([question.id]);
+    } else {
+      // If no subtopics, just navigate normally
+      const newBreadcrumbs = [...breadcrumbs, question];
+      setBreadcrumbs(newBreadcrumbs);
+      setSelectedQuestion(question.id);
+    }
+  };
 
   const handleNavigateToSubboard = (questionId: number) => {
     const question = questions.find(q => q.id === questionId);
