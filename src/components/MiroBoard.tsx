@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Move, RotateCw, ZoomIn, ZoomOut, Plus, Save, Grid, Eye, X, Edit, Trash, Image as ImageIcon, Settings, FormInput } from 'lucide-react';
+import { Move, RotateCw, ZoomIn, ZoomOut, Plus, Save, Grid, Eye, X, Edit, Trash, Image as ImageIcon, Settings, FormInput, ArrowRight } from 'lucide-react';
 import { QuestionForm } from './QuestionForm';
 import { FormSettings } from './FormSettings';
 import { ImageUpload } from './ImageUpload';
@@ -38,10 +38,12 @@ interface MiroBoardProps {
   parentId: number;
   questions: Question[];
   onUpdateQuestions: () => void;
+  onNavigateToSubboard?: (questionId: number) => void;
 }
 
-export function MiroBoard({ parentId, questions, onUpdateQuestions }: MiroBoardProps) {
+export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateToSubboard }: MiroBoardProps) {
   const [boardQuestions, setBoardQuestions] = useState<Question[]>([]);
+  const [parentQuestion, setParentQuestion] = useState<Question | null>(null);
   const [draggedItem, setDraggedItem] = useState<number | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -63,18 +65,27 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions }: MiroBoardP
   const boardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Find parent question
+    const parent = questions.find(q => q.id === parentId);
+    setParentQuestion(parent || null);
+
+    // Get subtopics
     const subtopics = questions.filter(q => q.parent_id === parentId);
     const questionsWithPositions = subtopics.map(q => ({
       ...q,
       board_position: q.board_position || {
-        x: Math.random() * 800,
-        y: Math.random() * 600,
+        x: Math.random() * 600 + 200,
+        y: Math.random() * 400 + 300,
         width: 320,
         height: 240
       }
     }));
     setBoardQuestions(questionsWithPositions);
   }, [questions, parentId]);
+
+  const hasSubtopics = (questionId: number) => {
+    return questions.some(q => q.parent_id === questionId);
+  };
 
   const handleMouseDown = (e: React.MouseEvent, questionId: number) => {
     if (e.button !== 0) return; // Only left click
@@ -240,8 +251,8 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions }: MiroBoardP
             image_url: null,
             image_positioning: null,
             board_position: {
-              x: Math.random() * 800,
-              y: Math.random() * 600,
+              x: Math.random() * 600 + 200,
+              y: Math.random() * 400 + 300,
               width: 320,
               height: 240
             }
@@ -346,6 +357,23 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions }: MiroBoardP
       setError('Failed to update image positioning. Please try again.');
     }
   };
+
+  // Calculate arrow paths from parent to children
+  const getArrowPath = (fromX: number, fromY: number, toX: number, toY: number) => {
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Control points for curved arrow
+    const controlX1 = fromX + dx * 0.3;
+    const controlY1 = fromY;
+    const controlX2 = toX - dx * 0.3;
+    const controlY2 = toY;
+    
+    return `M ${fromX} ${fromY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${toX} ${toY}`;
+  };
+
+  const parentPosition = parentQuestion ? { x: 400, y: 100, width: 400, height: 120 } : null;
 
   return (
     <div className="w-full h-screen bg-gray-100 relative overflow-hidden">
@@ -473,6 +501,74 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions }: MiroBoardP
             position: 'relative'
           }}
         >
+          {/* SVG for arrows */}
+          <svg
+            className="absolute inset-0 pointer-events-none"
+            style={{ width: '2000px', height: '2000px' }}
+          >
+            <defs>
+              <marker
+                id="arrowhead"
+                markerWidth="10"
+                markerHeight="7"
+                refX="9"
+                refY="3.5"
+                orient="auto"
+              >
+                <polygon
+                  points="0 0, 10 3.5, 0 7"
+                  fill="#6366f1"
+                />
+              </marker>
+            </defs>
+            
+            {/* Arrows from parent to children */}
+            {parentPosition && boardQuestions.map((question) => {
+              const fromX = parentPosition.x + parentPosition.width / 2;
+              const fromY = parentPosition.y + parentPosition.height;
+              const toX = question.board_position!.x + question.board_position!.width / 2;
+              const toY = question.board_position!.y;
+              
+              return (
+                <path
+                  key={`arrow-${question.id}`}
+                  d={getArrowPath(fromX, fromY, toX, toY)}
+                  stroke="#6366f1"
+                  strokeWidth="2"
+                  fill="none"
+                  markerEnd="url(#arrowhead)"
+                  opacity="0.7"
+                />
+              );
+            })}
+          </svg>
+
+          {/* Parent question card */}
+          {parentQuestion && parentPosition && (
+            <div
+              className="absolute bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg shadow-xl border-2 border-indigo-300 text-white"
+              style={{
+                left: parentPosition.x,
+                top: parentPosition.y,
+                width: parentPosition.width,
+                height: parentPosition.height,
+                zIndex: 10
+              }}
+            >
+              <div className="p-6 h-full flex flex-col justify-center">
+                <div className="flex items-center mb-2">
+                  <div className="w-3 h-3 bg-white rounded-full mr-2"></div>
+                  <span className="text-sm font-medium opacity-90">Родительская тема</span>
+                </div>
+                <h2 className="text-xl font-bold mb-2">{parentQuestion.content}</h2>
+                {parentQuestion.description && (
+                  <p className="text-sm opacity-90">{parentQuestion.description}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Child question cards */}
           {boardQuestions.map((question) => (
             <div
               key={question.id}
@@ -564,6 +660,11 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions }: MiroBoardP
                           Форма
                         </span>
                       )}
+                      {hasSubtopics(question.id) && (
+                        <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">
+                          {questions.filter(q => q.parent_id === question.id).length} подтем
+                        </span>
+                      )}
                     </div>
                   </>
                 )}
@@ -614,6 +715,18 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions }: MiroBoardP
                       title="Заполнить форму"
                     >
                       <FormInput className="w-3 h-3" />
+                    </button>
+                  )}
+                  {hasSubtopics(question.id) && onNavigateToSubboard && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNavigateToSubboard(question.id);
+                      }}
+                      className="p-1 bg-orange-600 text-white rounded hover:bg-orange-700"
+                      title="Открыть подтемы"
+                    >
+                      <ArrowRight className="w-3 h-3" />
                     </button>
                   )}
                   <button
@@ -669,6 +782,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions }: MiroBoardP
         <div>• Перетаскивайте фон для панорамирования</div>
         <div>• Тяните за углы карточек для изменения размера</div>
         <div>• Наведите на карточку для действий</div>
+        <div>• Оранжевая кнопка → открыть подтемы</div>
       </div>
 
       {/* Modals */}

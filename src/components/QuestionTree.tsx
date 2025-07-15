@@ -39,6 +39,7 @@ export function QuestionTree() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<Question[]>([]);
+  const [boardStack, setBoardStack] = useState<number[]>([]);
 
   useEffect(() => {
     fetchQuestions();
@@ -104,9 +105,28 @@ export function QuestionTree() {
   }
 
   const handleQuestionClick = (question: Question) => {
-    const newBreadcrumbs = [...breadcrumbs, question];
-    setBreadcrumbs(newBreadcrumbs);
-    setSelectedQuestion(question.id);
+    if (hasSubtopics(question.id)) {
+      // If question has subtopics, show board
+      const newBreadcrumbs = [...breadcrumbs, question];
+      setBreadcrumbs(newBreadcrumbs);
+      setSelectedQuestion(question.id);
+      setBoardStack([question.id]);
+    } else {
+      // If no subtopics, just navigate normally
+      const newBreadcrumbs = [...breadcrumbs, question];
+      setBreadcrumbs(newBreadcrumbs);
+      setSelectedQuestion(question.id);
+    }
+  };
+
+  const handleNavigateToSubboard = (questionId: number) => {
+    const question = questions.find(q => q.id === questionId);
+    if (question) {
+      const newBreadcrumbs = [...breadcrumbs, question];
+      setBreadcrumbs(newBreadcrumbs);
+      setSelectedQuestion(questionId);
+      setBoardStack([...boardStack, questionId]);
+    }
   };
 
   const handleBreadcrumbClick = (index: number) => {
@@ -114,10 +134,15 @@ export function QuestionTree() {
       // Clicked on "Главная"
       setBreadcrumbs([]);
       setSelectedQuestion(null);
+      setBoardStack([]);
     } else {
       const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
       setBreadcrumbs(newBreadcrumbs);
       setSelectedQuestion(newBreadcrumbs[newBreadcrumbs.length - 1]?.id || null);
+      
+      // Update board stack
+      const newBoardStack = boardStack.slice(0, index + 1);
+      setBoardStack(newBoardStack);
     }
   };
 
@@ -152,12 +177,13 @@ export function QuestionTree() {
   }
 
   // If we have a selected question and it has subtopics, show the board
-  if (selectedQuestion !== null && hasSubtopics(selectedQuestion)) {
+  if (selectedQuestion !== null && boardStack.length > 0) {
     return (
       <MiroBoard 
-        parentId={selectedQuestion}
+        parentId={boardStack[boardStack.length - 1]}
         questions={questions}
         onUpdateQuestions={fetchQuestions}
+        onNavigateToSubboard={handleNavigateToSubboard}
       />
     );
   }
