@@ -13,12 +13,19 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        checkAdminStatus(session.user.id);
-      }
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        if (session?.user) {
+          checkAdminStatus(session.user.id);
+        }
+      })
+      .catch((error) => {
+        console.error('Session retrieval error:', error);
+        if (error.message && error.message.includes('Refresh Token Not Found')) {
+          supabase.auth.signOut();
+        }
+      });
 
     const {
       data: { subscription },
