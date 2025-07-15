@@ -375,6 +375,33 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
 
   const parentPosition = parentQuestion ? { x: 400, y: 100, width: 400, height: 120 } : null;
 
+  // Calculate parent card size based on content
+  const calculateParentSize = (question: Question) => {
+    const baseWidth = 300;
+    const baseHeight = 100;
+    const charWidth = 8; // approximate character width
+    const lineHeight = 20;
+    
+    // Calculate width based on title length
+    const titleWidth = question.content.length * charWidth + 60; // padding
+    const width = Math.max(baseWidth, Math.min(titleWidth, 600));
+    
+    // Calculate height based on content
+    let height = baseHeight;
+    if (question.description) {
+      const descLines = Math.ceil(question.description.length / 50); // ~50 chars per line
+      height += descLines * lineHeight + 20; // extra padding
+    }
+    
+    return { width, height: Math.max(height, 120) };
+  };
+
+  const parentSize = parentQuestion ? calculateParentSize(parentQuestion) : null;
+  const parentPosition = parentQuestion ? { 
+    x: 400, 
+    y: 100, 
+    ...parentSize 
+  } : null;
   return (
     <div className="w-full h-screen bg-gray-100 relative overflow-hidden">
       {/* Toolbar */}
