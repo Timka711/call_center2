@@ -105,11 +105,18 @@ export function QuestionTree() {
   }
 
   const handleQuestionClick = (question: Question) => {
-    // Always show board for any question
-    const newBreadcrumbs = [...breadcrumbs, question];
-    setBreadcrumbs(newBreadcrumbs);
-    setSelectedQuestion(question.id);
-    setBoardStack([question.id]);
+    if (hasSubtopics(question.id)) {
+      // If question has subtopics, show board
+      const newBreadcrumbs = [...breadcrumbs, question];
+      setBreadcrumbs(newBreadcrumbs);
+      setSelectedQuestion(question.id);
+      setBoardStack([question.id]);
+    } else {
+      // If no subtopics, just navigate normally
+      const newBreadcrumbs = [...breadcrumbs, question];
+      setBreadcrumbs(newBreadcrumbs);
+      setSelectedQuestion(question.id);
+    }
   };
 
   const handleNavigateToSubboard = (questionId: number) => {
@@ -171,17 +178,16 @@ export function QuestionTree() {
 
   // If we have a selected question and it has subtopics, show the board
   if (selectedQuestion !== null && boardStack.length > 0) {
-  return (
-    <div className="absolute inset-0 z-50 bg-white">
+    return (
       <MiroBoard 
         parentId={boardStack[boardStack.length - 1]}
         questions={questions}
         onUpdateQuestions={fetchQuestions}
         onNavigateToSubboard={handleNavigateToSubboard}
+        onNavigateToSubboard={handleNavigateToSubboard}
       />
-    </div>
-  );
-}
+    );
+  }
 
   return (
     <>
