@@ -105,18 +105,11 @@ export function QuestionTree() {
   }
 
   const handleQuestionClick = (question: Question) => {
-    if (hasSubtopics(question.id)) {
-      // If question has subtopics, show board
-      const newBreadcrumbs = [...breadcrumbs, question];
-      setBreadcrumbs(newBreadcrumbs);
-      setSelectedQuestion(question.id);
-      setBoardStack([question.id]);
-    } else {
-      // If no subtopics, just navigate normally
-      const newBreadcrumbs = [...breadcrumbs, question];
-      setBreadcrumbs(newBreadcrumbs);
-      setSelectedQuestion(question.id);
-    }
+    // Always show board for any question
+    const newBreadcrumbs = [...breadcrumbs, question];
+    setBreadcrumbs(newBreadcrumbs);
+    setSelectedQuestion(question.id);
+    setBoardStack([question.id]);
   };
 
   const handleNavigateToSubboard = (questionId: number) => {
@@ -183,7 +176,6 @@ export function QuestionTree() {
         parentId={boardStack[boardStack.length - 1]}
         questions={questions}
         onUpdateQuestions={fetchQuestions}
-        onNavigateToSubboard={handleNavigateToSubboard}
         onNavigateToSubboard={handleNavigateToSubboard}
       />
     );
