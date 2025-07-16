@@ -105,11 +105,11 @@ export function QuestionTree() {
   }
 
   const handleQuestionClick = (question: Question) => {
-    // Always show board for any question
     const newBreadcrumbs = [...breadcrumbs, question];
     setBreadcrumbs(newBreadcrumbs);
     setSelectedQuestion(question.id);
-    setBoardStack([question.id]);
+    // Всегда добавляем доску в стек при клике
+    setBoardStack([...boardStack, question.id]);
   };
 
   const handleNavigateToSubboard = (questionId: number) => {
@@ -124,7 +124,6 @@ export function QuestionTree() {
 
   const handleBreadcrumbClick = (index: number) => {
     if (index === -1) {
-      // Clicked on "Главная"
       setBreadcrumbs([]);
       setSelectedQuestion(null);
       setBoardStack([]);
@@ -132,9 +131,8 @@ export function QuestionTree() {
       const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
       setBreadcrumbs(newBreadcrumbs);
       setSelectedQuestion(newBreadcrumbs[newBreadcrumbs.length - 1]?.id || null);
-      
-      // Update board stack
-      const newBoardStack = boardStack.slice(0, index + 1);
+      // Синхронизируем стек досок с хлебными крошками
+      const newBoardStack = newBreadcrumbs.map(b => b.id);
       setBoardStack(newBoardStack);
     }
   };
@@ -170,7 +168,7 @@ export function QuestionTree() {
   }
 
   // If we have a selected question and it has subtopics, show the board
-  if (selectedQuestion !== null && boardStack.length > 0) {
+  if (boardStack.length > 0) {
     return (
       <MiroBoard 
         parentId={boardStack[boardStack.length - 1]}
