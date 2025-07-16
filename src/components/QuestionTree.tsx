@@ -176,14 +176,24 @@ export function QuestionTree() {
     return questions.some(q => q.parent_id === questionId);
   };
 
-  if (loading) {
+  if (currentBoard !== null) {
     return (
-      <>
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <CallCenterLoader />
-        </div>
-        <WaveBackground />
-      </>
+      <div className="relative">
+        <button
+          onClick={handleCloseBoard}
+          className="absolute top-4 right-4 z-50 flex items-center px-3 py-2 bg-white rounded-lg shadow-md hover:bg-gray-100 transition-colors"
+        >
+          <ChevronLast className="w-5 h-5 mr-2" />
+          Назад к списку
+        </button>
+        
+        <MiroBoard 
+          parentId={currentBoard}
+          questions={questions}
+          onUpdateQuestions={fetchQuestions}
+          onNavigateToSubboard={handleNavigateToSubboard}
+        />
+      </div>
     );
   }
 
