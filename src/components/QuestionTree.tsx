@@ -112,15 +112,7 @@ export function QuestionTree() {
     setBoardStack([...boardStack, question.id]);
   };
 
-  const handleNavigateToSubboard = (questionId: number) => {
-    const question = questions.find(q => q.id === questionId);
-    if (question) {
-      const newBreadcrumbs = [...breadcrumbs, question];
-      setBreadcrumbs(newBreadcrumbs);
-      setSelectedQuestion(questionId);
-      setBoardStack([...boardStack, questionId]);
-    }
-  };
+  
 
   const handleBreadcrumbClick = (index: number) => {
     if (index === -1) {
