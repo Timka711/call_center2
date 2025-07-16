@@ -76,7 +76,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
   board_position: q.board_position || { // Add default position
     x: Math.random() * 600 + 200,
     y: Math.random() * 400 + 300,
-    width: 320,
+    width: 32,
     height: 240
   }
 }));
