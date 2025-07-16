@@ -69,17 +69,17 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
     const parent = questions.find(q => q.id === parentId);
     setParentQuestion(parent || null);
 
-    // Get subtopics - filter questions that have this parentId as their parent_id
+    // Get subtopics
     const subtopics = questions.filter(q => q.parent_id === parentId);
     const questionsWithPositions = subtopics.map(q => ({
-  ...q,
-  board_position: q.board_position || { // Add default position
-    x: Math.random() * 600 + 200,
-    y: Math.random() * 400 + 300,
-    width: 320,
-    height: 240
-  }
-}));
+      ...q,
+      board_position: q.board_position || {
+        x: Math.random() * 600 + 200,
+        y: Math.random() * 400 + 300,
+        width: 320,
+        height: 240
+      }
+    }));
     setBoardQuestions(questionsWithPositions);
   }, [questions, parentId]);
 
@@ -256,7 +256,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
               width: 320,
               height: 240
             }
-          }
+          },
         ]);
 
       if (error) throw error;
@@ -358,245 +358,458 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
     }
   };
 
-  return (
-    <div 
-      ref={boardRef}
-      className="relative w-full h-full overflow-hidden bg-gray-100"
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseDown={handleBoardMouseDown}
-      onWheel={handleWheel}
-    >
-      {/* Controls */}
-      <div className="absolute top-4 left-4 flex gap-2 z-10">
-        <button 
-          onClick={resetView}
-          className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
-          title="Reset View"
-        >
-          <RotateCw size={20} />
-        </button>
-        <button 
-          onClick={() => setZoom(prev => Math.min(3, prev * 1.2))}
-          className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
-          title="Zoom In"
-        >
-          <ZoomIn size={20} />
-        </button>
-        <button 
-          onClick={() => setZoom(prev => Math.max(0.1, prev * 0.8))}
-          className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
-          title="Zoom Out"
-        >
-          <ZoomOut size={20} />
-        </button>
-        <button 
-          onClick={fitToScreen}
-          className="p-2 bg-white rounded-lg shadow hover:bg-gray-50"
-          title="Fit to Screen"
-        >
-          <Move size={20} />
-        </button>
-        <button 
-          onClick={() => setShowGrid(!showGrid)}
-          className={`p-2 rounded-lg shadow hover:bg-gray-50 ${showGrid ? 'bg-blue-100' : 'bg-white'}`}
-          title="Toggle Grid"
-        >
-          <Grid size={20} />
-        </button>
-      </div>
+  // Calculate arrow paths from parent to children
+  const getArrowPath = (fromX: number, fromY: number, toX: number, toY: number) => {
+    const dx = toX - fromX;
+    const dy = toY - fromY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // Control points for curved arrow
+    const controlX1 = fromX + dx * 0.3;
+    const controlY1 = fromY;
+    const controlX2 = toX - dx * 0.3;
+    const controlY2 = toY;
+    
+    return `M ${fromX} ${fromY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${toX} ${toY}`;
+  };
 
-      {/* Add Question Button */}
-      <div className="absolute top-4 right-4 z-10">
+  const parentPosition = parentQuestion ? { x: 400, y: 100, width: 400, height: 120 } : null;
+
+  // Calculate parent card size based on content
+  const calculateParentSize = (question: Question) => {
+    const baseWidth = 300;
+    const baseHeight = 100;
+    const charWidth = 8; // approximate character width
+    const lineHeight = 20;
+    
+    // Calculate width based on title length
+    const titleWidth = question.content.length * charWidth + 60; // padding
+    const width = Math.max(baseWidth, Math.min(titleWidth, 600));
+    
+    // Calculate height based on content
+    let height = baseHeight;
+    if (question.description) {
+      const descLines = Math.ceil(question.description.length / 50); // ~50 chars per line
+      height += descLines * lineHeight + 20; // extra padding
+    }
+    
+    return { width, height: Math.max(height, 120) };
+  };
+
+  const parentSize = parentQuestion ? calculateParentSize(parentQuestion) : null;
+  const parentPosition = parentQuestion ? { 
+    x: 400, 
+    y: 100, 
+    ...parentSize 
+  } : null;
+  return (
+    <div className="w-full h-screen bg-gray-100 relative overflow-hidden">
+      {/* Toolbar */}
+      <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg p-2 flex items-center gap-2">
         <button
           onClick={() => setShowAddForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg shadow hover:bg-blue-600"
+          className="p-2 hover:bg-gray-100 rounded text-green-600"
+          title="Добавить подтему"
         >
-          <Plus size={20} />
-          Add Question
+          <Plus className="w-4 h-4" />
+        </button>
+        <div className="w-px h-6 bg-gray-300" />
+        <button
+          onClick={() => setZoom(prev => Math.min(3, prev * 1.2))}
+          className="p-2 hover:bg-gray-100 rounded"
+          title="Увеличить"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setZoom(prev => Math.max(0.1, prev * 0.8))}
+          className="p-2 hover:bg-gray-100 rounded"
+          title="Уменьшить"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+        <div className="text-sm text-gray-600 px-2">
+          {Math.round(zoom * 100)}%
+        </div>
+        <div className="w-px h-6 bg-gray-300" />
+        <button
+          onClick={resetView}
+          className="p-2 hover:bg-gray-100 rounded"
+          title="Сбросить вид"
+        >
+          <RotateCw className="w-4 h-4" />
+        </button>
+        <button
+          onClick={fitToScreen}
+          className="p-2 hover:bg-gray-100 rounded"
+          title="Вместить в экран"
+        >
+          <Eye className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setShowGrid(!showGrid)}
+          className={`p-2 rounded ${showGrid ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-gray-100'}`}
+          title="Показать сетку"
+        >
+          <Grid className="w-4 h-4" />
+        </button>
+        <button
+          onClick={saveBoardPositions}
+          className="p-2 hover:bg-gray-100 rounded text-green-600"
+          title="Сохранить позиции"
+        >
+          <Save className="w-4 h-4" />
         </button>
       </div>
 
-      {/* Add Question Form */}
-      {showAddForm && (
-        <div className="absolute top-16 right-4 w-80 bg-white rounded-lg shadow-lg p-4 z-20">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="font-medium">Add New Question</h3>
-            <button onClick={() => setShowAddForm(false)} className="text-gray-500 hover:text-gray-700">
-              <X size={20} />
-            </button>
-          </div>
-          <textarea
-            value={newQuestionContent}
-            onChange={(e) => setNewQuestionContent(e.target.value)}
-            className="w-full h-32 p-2 border rounded-lg mb-4"
-            placeholder="Enter your question..."
-          />
-          <button
-            onClick={handleAddQuestion}
-            className="w-full py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-          >
-            Add Question
-          </button>
-          {error && <div className="mt-2 text-red-500 text-sm">{error}</div>}
+      {/* Error display */}
+      {error && (
+        <div className="absolute top-4 right-4 z-10 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg max-w-md">
+          {error}
         </div>
       )}
 
-      {/* Grid */}
-      {showGrid && (
-        <div 
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            backgroundImage: 'linear-gradient(to right, #e5e7eb 1px, transparent 1px), linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)',
-            backgroundSize: `${50 * zoom}px ${50 * zoom}px`,
-            transform: `translate(${pan.x}px, ${pan.y}px)`
-          }}
-        />
+      {/* Add form modal */}
+      {showAddForm && (
+        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Добавить новую подтему</h3>
+            <input
+              type="text"
+              value={newQuestionContent}
+              onChange={(e) => setNewQuestionContent(e.target.value)}
+              placeholder="Введите название подтемы..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewQuestionContent('');
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleAddQuestion}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+              >
+                Добавить
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* Questions */}
-      <div 
-        className="absolute inset-0"
+      {/* Board */}
+      <div
+        ref={boardRef}
+        className="w-full h-full cursor-grab active:cursor-grabbing"
+        onMouseDown={handleBoardMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onWheel={handleWheel}
         style={{
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
+          backgroundImage: showGrid ? `
+            radial-gradient(circle, #e5e7eb 1px, transparent 1px)
+          ` : 'none',
+          backgroundSize: `${20 * zoom}px ${20 * zoom}px`,
+          backgroundPosition: `${pan.x}px ${pan.y}px`
         }}
       >
-        {boardQuestions.map((question) => (
-          <div
-            key={question.id}
-            className={`absolute bg-white rounded-lg shadow-lg overflow-hidden cursor-move
-              ${draggedItem === question.id ? 'shadow-xl z-10' : ''}
-              ${isResizing === question.id ? 'select-none' : ''}`}
-            style={{
-              left: question.board_position!.x,
-              top: question.board_position!.y,
-              width: question.board_position!.width,
-              height: question.board_position!.height,
-              transform: `scale(${1 / zoom})`,
-              transformOrigin: '0 0'
-            }}
-            onMouseDown={(e) => handleMouseDown(e, question.id)}
+        <div
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0',
+            width: '2000px',
+            height: '2000px',
+            position: 'relative'
+          }}
+        >
+          {/* SVG for arrows */}
+          <svg
+            className="absolute inset-0 pointer-events-none"
+            style={{ width: '2000px', height: '2000px' }}
           >
-            {/* Question Content */}
-            <div className="p-4 h-full flex flex-col">
-              {editingQuestion === question.id ? (
-                <div className="flex-1">
-                  <input
-                    value={editingContent}
-                    onChange={(e) => setEditingContent(e.target.value)}
-                    className="w-full p-2 border rounded mb-2"
-                    placeholder="Question content..."
-                  />
-                  <textarea
-                    value={editingDescription}
-                    onChange={(e) => setEditingDescription(e.target.value)}
-                    className="w-full h-24 p-2 border rounded"
-                    placeholder="Description..."
-                  />
-                  <div className="flex justify-end gap-2 mt-2">
-                    <button
-                      onClick={() => setEditingQuestion(null)}
-                      className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => handleUpdateQuestion(question.id)}
-                      className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <h3 className="font-medium mb-2">{question.content}</h3>
-                  <p className="text-sm text-gray-600 flex-1">{question.description}</p>
-                </>
-              )}
+            <defs>
+              <marker
+                id="arrowhead"
+                markerWidth="10"
+                markerHeight="7"
+                refX="9"
+                refY="3.5"
+                orient="auto"
+              >
+                <polygon
+                  points="0 0, 10 3.5, 0 7"
+                  fill="#6366f1"
+                />
+              </marker>
+            </defs>
+            
+            {/* Arrows from parent to children */}
+            {parentPosition && boardQuestions.map((question) => {
+              const fromX = parentPosition.x + parentPosition.width / 2;
+              const fromY = parentPosition.y + parentPosition.height;
+              const toX = question.board_position!.x + question.board_position!.width / 2;
+              const toY = question.board_position!.y;
+              
+              return (
+                <path
+                  key={`arrow-${question.id}`}
+                  d={getArrowPath(fromX, fromY, toX, toY)}
+                  stroke="#6366f1"
+                  strokeWidth="2"
+                  fill="none"
+                  markerEnd="url(#arrowhead)"
+                  opacity="0.7"
+                />
+              );
+            })}
+          </svg>
 
-              {/* Actions */}
-              <div className="flex justify-between items-center mt-4">
-                <div className="flex gap-2">
+          {/* Parent question card */}
+          {parentQuestion && parentPosition && (
+            <div
+              className="absolute bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg shadow-xl border-2 border-indigo-300 text-white"
+              style={{
+                left: parentPosition.x,
+                top: parentPosition.y,
+                width: parentPosition.width,
+                height: parentPosition.height,
+                zIndex: 10
+              }}
+            >
+              <div className="p-6 h-full flex flex-col justify-center">
+                <div className="flex items-center mb-2">
+                  <div className="w-3 h-3 bg-white rounded-full mr-2"></div>
+                  <span className="text-sm font-medium opacity-90">Родительская тема</span>
+                </div>
+                <h2 className="text-xl font-bold mb-2">{parentQuestion.content}</h2>
+                {parentQuestion.description && (
+                  <p className="text-sm opacity-90">{parentQuestion.description}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Child question cards */}
+          {boardQuestions.map((question) => (
+            <div
+              key={question.id}
+              className={`absolute bg-white rounded-lg shadow-lg border-2 cursor-move select-none ${
+                draggedItem === question.id ? 'border-indigo-500 shadow-xl' : 'border-gray-200 hover:border-gray-300'
+              } ${editingQuestion === question.id ? 'border-blue-500' : ''}`}
+              style={{
+                left: question.board_position!.x,
+                top: question.board_position!.y,
+                width: question.board_position!.width,
+                height: question.board_position!.height,
+                zIndex: draggedItem === question.id ? 1000 : editingQuestion === question.id ? 999 : 1
+              }}
+              onMouseDown={(e) => {
+                if (editingQuestion !== question.id) {
+                  handleMouseDown(e, question.id);
+                }
+              }}
+            >
+              {/* Content */}
+              <div className="p-4 h-full flex flex-col">
+                {question.image_url && editingImage !== question.id && (
+                  <div className="w-full h-20 mb-3 overflow-hidden rounded">
+                    <img
+                      src={question.image_url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+
+                {editingImage === question.id && (
+                  <div className="mb-3">
+                    <ImageUpload
+                      currentImage={question.image_url}
+                      onUpload={(url) => updateTopicImage(question.id, url)}
+                      onCancel={() => setEditingImage(null)}
+                    />
+                  </div>
+                )}
+
+                {editingQuestion === question.id ? (
+                  <div className="flex-1 flex flex-col gap-2">
+                    <input
+                      type="text"
+                      value={editingContent}
+                      onChange={(e) => setEditingContent(e.target.value)}
+                      className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      placeholder="Название"
+                    />
+                    <textarea
+                      value={editingDescription}
+                      onChange={(e) => setEditingDescription(e.target.value)}
+                      className="w-full px-2 py-1 text-xs border rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 flex-1 resize-none"
+                      placeholder="Описание"
+                    />
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => handleUpdateQuestion(question.id)}
+                        className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                      >
+                        Сохранить
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingQuestion(null);
+                          setEditingContent('');
+                          setEditingDescription('');
+                        }}
+                        className="px-2 py-1 bg-gray-600 text-white text-xs rounded hover:bg-gray-700"
+                      >
+                        Отмена
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <h3 className="font-semibold text-gray-900 mb-2 text-sm leading-tight">
+                      {question.content}
+                    </h3>
+                    <p className="text-xs text-gray-800 flex-1 overflow-hidden mb-2">
+                      {question.description || 'Нет описания'}
+                    </p>
+                    
+                    {/* Actions */}
+                    <div className="flex flex-wrap gap-1 mt-auto">
+                      {question.has_form && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                          Форма
+                        </span>
+                      )}
+                      {hasSubtopics(question.id) && (
+                        <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">
+                          {questions.filter(q => q.parent_id === question.id).length} подтем
+                        </span>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Action buttons */}
+              {editingQuestion !== question.id && (
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 hover:opacity-100 transition-opacity">
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setEditingQuestion(question.id);
                       setEditingContent(question.content);
                       setEditingDescription(question.description);
                     }}
-                    className="p-1 text-gray-500 hover:text-gray-700"
-                    title="Edit"
+                    className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    title="Редактировать"
                   >
-                    <Edit size={16} />
+                    <Edit className="w-3 h-3" />
                   </button>
                   <button
-                    onClick={() => handleDeleteQuestion(question.id)}
-                    className="p-1 text-gray-500 hover:text-red-500"
-                    title="Delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingImage(question.id);
+                    }}
+                    className="p-1 bg-green-600 text-white rounded hover:bg-green-700"
+                    title="Изображение"
                   >
-                    <Trash size={16} />
+                    <ImageIcon className="w-3 h-3" />
                   </button>
                   <button
-                    onClick={() => setEditingImage(question.id)}
-                    className="p-1 text-gray-500 hover:text-gray-700"
-                    title="Add/Edit Image"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowFormSettings(question.id);
+                    }}
+                    className="p-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                    title="Форма"
                   >
-                    <ImageIcon size={16} />
+                    <Settings className="w-3 h-3" />
                   </button>
-                  {question.image_url && (
+                  {question.has_form && (
                     <button
-                      onClick={() => setPositioningImage(question.id)}
-                      className="p-1 text-gray-500 hover:text-gray-700"
-                      title="Image Positioning"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowForm(question.id);
+                      }}
+                      className="p-1 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                      title="Заполнить форму"
                     >
-                      <Settings size={16} />
+                      <FormInput className="w-3 h-3" />
+                    </button>
+                  )}
+                  {hasSubtopics(question.id) && onNavigateToSubboard && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNavigateToSubboard(question.id);
+                      }}
+                      className="p-1 bg-orange-600 text-white rounded hover:bg-orange-700"
+                      title="Открыть подтемы"
+                    >
+                      <ArrowRight className="w-3 h-3" />
                     </button>
                   )}
                   <button
-                    onClick={() => setShowForm(question.id)}
-                    className="p-1 text-gray-500 hover:text-gray-700"
-                    title="View Form"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm('Удалить эту подтему?')) {
+                        handleDeleteQuestion(question.id);
+                      }
+                    }}
+                    className="p-1 bg-red-600 text-white rounded hover:bg-red-700"
+                    title="Удалить"
                   >
-                    <Eye size={16} />
-                  </button>
-                  <button
-                    onClick={() => setShowFormSettings(question.id)}
-                    className="p-1 text-gray-500 hover:text-gray-700"
-                    title="Form Settings"
-                  >
-                    <FormInput size={16} />
+                    <Trash className="w-3 h-3" />
                   </button>
                 </div>
-                {hasSubtopics(question.id) && onNavigateToSubboard && (
-                  <button
-                    onClick={() => onNavigateToSubboard(question.id)}
-                    className="p-1 text-orange-500 hover:text-orange-600"
-                    title="Open Subtopics"
-                  >
-                    <ArrowRight size={16} />
-                  </button>
-                )}
-              </div>
-            </div>
+              )}
 
-            {/* Resize Handles */}
-            <div
-              className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize"
-              onMouseDown={(e) => handleResize(question.id, 'bottom-right', e)}
-            />
-          </div>
-        ))}
+              {/* Resize handles */}
+              {!draggedItem && editingQuestion !== question.id && (
+                <>
+                  <div
+                    className="absolute bottom-0 right-0 w-3 h-3 bg-gray-400 cursor-se-resize opacity-0 hover:opacity-100 transition-opacity"
+                    onMouseDown={(e) => handleResize(question.id, 'bottom-right', e)}
+                    style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 100%)' }}
+                  />
+                  <div
+                    className="absolute bottom-0 right-0 w-4 h-1 cursor-s-resize opacity-0 hover:opacity-50 hover:bg-gray-400 transition-all"
+                    onMouseDown={(e) => handleResize(question.id, 'bottom', e)}
+                  />
+                  <div
+                    className="absolute bottom-0 right-0 w-1 h-4 cursor-e-resize opacity-0 hover:opacity-50 hover:bg-gray-400 transition-all"
+                    onMouseDown={(e) => handleResize(question.id, 'right', e)}
+                  />
+                </>
+              )}
+
+              {/* Move handle */}
+              {editingQuestion !== question.id && (
+                <div className="absolute top-2 left-2 opacity-0 hover:opacity-100 transition-opacity">
+                  <Move className="w-4 h-4 text-gray-400" />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Instructions */}
       <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 text-xs text-gray-600 max-w-xs">
-        <div className="font-medium mb-1">Controls:</div>
-        <div>• Drag cards to move them</div>
-        <div>• Use mouse wheel to zoom</div>
-        <div>• Drag background to pan</div>
-        <div>• Drag corners to resize cards</div>
-        <div>• Hover over cards for actions</div>
-        <div>• Orange button → open subtopics</div>
+        <div className="font-medium mb-1">Управление:</div>
+        <div>• Перетаскивайте карточки для перемещения</div>
+        <div>• Используйте колесо мыши для масштабирования</div>
+        <div>• Перетаскивайте фон для панорамирования</div>
+        <div>• Тяните за углы карточек для изменения размера</div>
+        <div>• Наведите на карточку для действий</div>
+        <div>• Оранжевая кнопка → открыть подтемы</div>
       </div>
 
       {/* Modals */}
@@ -616,15 +829,6 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
           initialTemplate={boardQuestions.find(q => q.id === showFormSettings)?.answer_template || ''}
           onClose={() => setShowFormSettings(null)}
           onUpdate={onUpdateQuestions}
-        />
-      )}
-
-      {editingImage !== null && (
-        <ImageUpload
-          questionId={editingImage}
-          currentImageUrl={boardQuestions.find(q => q.id === editingImage)?.image_url || ''}
-          onSave={updateTopicImage}
-          onClose={() => setEditingImage(null)}
         />
       )}
 
