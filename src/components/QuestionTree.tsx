@@ -184,6 +184,7 @@ export function QuestionTree() {
         questions={questions}
         onUpdateQuestions={fetchQuestions}
         onNavigateToSubboard={handleNavigateToSubboard}
+        onNavigateToSubboard={handleNavigateToSubboard}
       />
     );
   }
