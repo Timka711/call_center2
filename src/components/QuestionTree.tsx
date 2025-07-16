@@ -107,7 +107,7 @@ export function QuestionTree() {
   const handleQuestionClick = (question: Question) => {
     // Always show board for any question
     const newBreadcrumbs = [...breadcrumbs, question];
-    setBreadcrumbs(newBreadcrumbs);
+    
     setSelectedQuestion(question.id);
     setBoardStack([question.id]);
   };
