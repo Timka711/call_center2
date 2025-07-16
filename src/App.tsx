@@ -13,27 +13,59 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession()
-      .then(({ data: { session } }) => {
+    const initializeAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.warn('Session initialization error:', error.message);
+          if (error.message.includes('refresh_token_not_found') || 
+              error.message.includes('Invalid Refresh Token')) {
+            await supabase.auth.signOut();
+            setSession(null);
+            return;
+          }
+        }
+        
         setSession(session);
         if (session?.user) {
           checkAdminStatus(session.user.id);
         }
-      })
-      .catch((error) => {
-        console.error('Session retrieval error:', error);
-        if (error.message && error.message.includes('Refresh Token Not Found')) {
-          supabase.auth.signOut();
+      } catch (error) {
+        console.warn('Auth initialization failed:', error);
+        if (error.message && (error.message.includes('Refresh Token Not Found') || 
+                             error.message.includes('refresh_token_not_found'))) {
+          await supabase.auth.signOut();
+          setSession(null);
+        } else {
+          // For other errors, still try to clear the session to be safe
           setSession(null);
         }
-      });
+      }
+    };
+
+    initializeAuth();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        // Token refresh failed, clear session
+        setSession(null);
+        return;
+      }
+      
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setIsAdmin(false);
+        return;
+      }
+      
       setSession(session);
       if (session?.user) {
         checkAdminStatus(session.user.id);
+      } else {
+        setIsAdmin(false);
       }
     });
 
