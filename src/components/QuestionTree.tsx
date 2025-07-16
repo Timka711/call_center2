@@ -107,13 +107,13 @@ export function QuestionTree() {
   const handleQuestionClick = (question: Question) => {
     // Always show board for any question
     const newBreadcrumbs = [...breadcrumbs, question];
-    
+    setBreadcrumbs(newBreadcrumbs);
     setSelectedQuestion(question.id);
     setBoardStack([question.id]);
   };
 
   const handleNavigateToSubboard = (questionId: number) => {
-    const question = questions.find(q => q.id === questionId);
+    const question = questions.find(q => q.id == questionId);
     if (question) {
       const newBreadcrumbs = [...breadcrumbs, question];
       setBreadcrumbs(newBreadcrumbs);
