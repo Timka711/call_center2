@@ -171,10 +171,10 @@ export function QuestionTree() {
 
   // If we have a selected question and it has subtopics, show the board
   if (selectedQuestion !== null && boardStack.length > 0) {
-    console.log(selectedQuestion)
+    console.log(fetchQuestions)
     return (
       <MiroBoard 
-        parentId={boardStack[boardStack.length]}
+        parentId={boardStack[boardStack.length - 1]}
         questions={questions}
         onUpdateQuestions={fetchQuestions}
         onNavigateToSubboard={handleNavigateToSubboard}
