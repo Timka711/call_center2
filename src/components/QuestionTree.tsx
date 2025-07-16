@@ -35,16 +35,24 @@ interface Question {
 export function QuestionTree() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [newQuestion, setNewQuestion] = useState('');
-  const [selectedQuestion, setSelectedQuestion] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<Question[]>([]);
   const [boardStack, setBoardStack] = useState<number[]>([]);
+  const [currentBoard, setCurrentBoard] = useState<number | null>(null); // Новое состояние для текущей доски
 
   useEffect(() => {
     fetchQuestions();
   }, []);
 
+  // При изменении стека досок обновляем текущую доску
+  useEffect(() => {
+    if (boardStack.length > 0) {
+      setCurrentBoard(boardStack[boardStack.length - 1]);
+    } else {
+      setCurrentBoard(null);
+    }
+  }, [boardStack]);
   async function fetchQuestions() {
     try {
       setLoading(true);
@@ -107,9 +115,10 @@ export function QuestionTree() {
   const handleQuestionClick = (question: Question) => {
     const newBreadcrumbs = [...breadcrumbs, question];
     setBreadcrumbs(newBreadcrumbs);
-    setSelectedQuestion(question.id);
-    // Всегда добавляем доску в стек при клике
-    setBoardStack([...boardStack, question.id]);
+    
+    // Всегда добавляем доску в стек
+    const newBoardStack = [...boardStack, question.id];
+    setBoardStack(newBoardStack);
   };
 
   const handleNavigateToSubboard = (questionId: number) => {
@@ -117,7 +126,6 @@ export function QuestionTree() {
     if (question) {
       const newBreadcrumbs = [...breadcrumbs, question];
       setBreadcrumbs(newBreadcrumbs);
-      setSelectedQuestion(questionId);
       setBoardStack([...boardStack, questionId]);
     }
   };
@@ -125,18 +133,30 @@ export function QuestionTree() {
   const handleBreadcrumbClick = (index: number) => {
     if (index === -1) {
       setBreadcrumbs([]);
-      setSelectedQuestion(null);
       setBoardStack([]);
     } else {
       const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
       setBreadcrumbs(newBreadcrumbs);
-      setSelectedQuestion(newBreadcrumbs[newBreadcrumbs.length - 1]?.id || null);
-      // Синхронизируем стек досок с хлебными крошками
       const newBoardStack = newBreadcrumbs.map(b => b.id);
       setBoardStack(newBoardStack);
     }
   };
 
+  const handleCloseBoard = () => {
+    if (boardStack.length > 0) {
+      // Возвращаемся на уровень выше
+      const newBoardStack = [...boardStack];
+      newBoardStack.pop();
+      setBoardStack(newBoardStack);
+      
+      // Обновляем хлебные крошки
+      if (newBoardStack.length > 0) {
+        setBreadcrumbs(breadcrumbs.slice(0, breadcrumbs.length - 1));
+      } else {
+        setBreadcrumbs([]);
+      }
+    }
+  };
   const getTopLevelQuestions = () => {
     return questions.filter(q => q.parent_id === null);
   };
@@ -156,28 +176,28 @@ export function QuestionTree() {
     return questions.some(q => q.parent_id === questionId);
   };
 
-  if (loading) {
+ if (currentBoard !== null) {
     return (
-      <>
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <CallCenterLoader />
-        </div>
-        <WaveBackground />
-      </>
+      <div className="relative">
+        <button
+          onClick={handleCloseBoard}
+          className="absolute top-4 right-4 z-50 flex items-center px-3 py-2 bg-white rounded-lg shadow-md hover:bg-gray-100 transition-colors"
+        >
+          <ChevronLast className="w-5 h-5 mr-2" />
+          Назад к списку
+        </button>
+        
+        <MiroBoard 
+          parentId={currentBoard}
+          questions={questions}
+          onUpdateQuestions={fetchQuestions}
+          onNavigateToSubboard={handleNavigateToSubboard}
+        />
+      </div>
     );
   }
 
   // If we have a selected question and it has subtopics, show the board
-  if (boardStack.length > 0) {
-    return (
-      <MiroBoard 
-        
-        questions={questions}
-        onUpdateQuestions={fetchQuestions}
-        onNavigateToSubboard={handleNavigateToSubboard}
-      />
-    );
-  }
 
   return (
     <>
