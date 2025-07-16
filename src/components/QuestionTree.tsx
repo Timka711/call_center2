@@ -113,7 +113,7 @@ export function QuestionTree() {
   };
 
   const handleNavigateToSubboard = (questionId: number) => {
-    const question = questions.find(q => q.id == questionId);
+    const question = questions.find(q => q.id === questionId);
     if (question) {
       const newBreadcrumbs = [...breadcrumbs, question];
       setBreadcrumbs(newBreadcrumbs);
