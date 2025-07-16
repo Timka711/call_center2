@@ -69,10 +69,11 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
     const parent = questions.find(q => q.id === parentId);
     setParentQuestion(parent || null);
 
-    // Get subtopics
+    // Get subtopics - filter questions that have this parentId as their parent_id
+    const subtopics = questions.filter(q => q.parent_id === parentId);
     const questionsWithPositions = subtopics.map(q => ({
   ...q,
-  board_position: q.board_position || { // Добавляем позицию по умолчанию
+  board_position: q.board_position || { // Add default position
     x: Math.random() * 600 + 200,
     y: Math.random() * 400 + 300,
     width: 320,

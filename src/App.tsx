@@ -24,6 +24,7 @@ function App() {
         console.error('Session retrieval error:', error);
         if (error.message && error.message.includes('Refresh Token Not Found')) {
           supabase.auth.signOut();
+          setSession(null);
         }
       });
 
