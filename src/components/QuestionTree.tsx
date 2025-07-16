@@ -171,7 +171,7 @@ export function QuestionTree() {
   if (boardStack.length > 0) {
     return (
       <MiroBoard 
-        parentId={boardStack[boardStack.length - 1]}
+        
         questions={questions}
         onUpdateQuestions={fetchQuestions}
         onNavigateToSubboard={handleNavigateToSubboard}
