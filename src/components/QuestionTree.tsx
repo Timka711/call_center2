@@ -171,7 +171,7 @@ export function QuestionTree() {
 
   // If we have a selected question and it has subtopics, show the board
   if (selectedQuestion !== null && boardStack.length > 0) {
-    console.log(boardStack.length)
+    console.log(selectedQuestion)
     return (
       <MiroBoard 
         parentId={boardStack[boardStack.length - 1]}
