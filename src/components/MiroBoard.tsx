@@ -1,18 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Move, RotateCw, ZoomIn, ZoomOut, Plus, Save, Grid, Eye, X, Edit, Trash, Image as ImageIcon, Settings, FormInput, ArrowRight } from 'lucide-react';
-import { QuestionForm } from './QuestionForm';
-import { FormSettings } from './FormSettings';
-import { ImageUpload } from './ImageUpload';
-import { ImagePositioning, ImagePositioning as ImagePositioningType } from './ImagePositioning';
-
-interface FormField {
-  id: string;
-  label: string;
-  type: 'text' | 'number' | 'date' | 'select';
-  options?: string[];
-  required?: boolean;
-}
+import { Move, ZoomIn, ZoomOut, Plus, Save, Grid, Eye, X, Edit, Trash, ArrowRight, ChevronRight } from 'lucide-react';
 
 interface Question {
   id: number;
@@ -21,11 +9,7 @@ interface Question {
   parent_id: number | null;
   created_at: string;
   user_id: string;
-  form_fields: FormField[];
-  answer_template: string;
-  has_form: boolean;
   image_url: string | null;
-  image_positioning: ImagePositioningType | null;
   board_position?: {
     x: number;
     y: number;
@@ -39,9 +23,11 @@ interface MiroBoardProps {
   questions: Question[];
   onUpdateQuestions: () => void;
   onNavigateToSubboard?: (questionId: number) => void;
+  breadcrumbs: Question[];
+  onBreadcrumbClick: (index: number) => void;
 }
 
-export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateToSubboard }: MiroBoardProps) {
+export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateToSubboard, breadcrumbs, onBreadcrumbClick }: MiroBoardProps) {
   const [boardQuestions, setBoardQuestions] = useState<Question[]>([]);
   const [parentQuestion, setParentQuestion] = useState<Question | null>(null);
   const [draggedItem, setDraggedItem] = useState<number | null>(null);
@@ -50,26 +36,19 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [isResizing, setIsResizing] = useState<number | null>(null);
   const [showGrid, setShowGrid] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newQuestionContent, setNewQuestionContent] = useState('');
   const [editingQuestion, setEditingQuestion] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState('');
   const [editingDescription, setEditingDescription] = useState('');
-  const [showForm, setShowForm] = useState<number | null>(null);
-  const [showFormSettings, setShowFormSettings] = useState<number | null>(null);
-  const [editingImage, setEditingImage] = useState<number | null>(null);
-  const [positioningImage, setPositioningImage] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Find parent question
     const parent = questions.find(q => q.id === parentId);
     setParentQuestion(parent || null);
 
-    // Get subtopics
     const subtopics = questions.filter(q => q.parent_id === parentId);
     const questionsWithPositions = subtopics.map(q => ({
       ...q,
@@ -88,7 +67,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
   };
 
   const handleMouseDown = (e: React.MouseEvent, questionId: number) => {
-    if (e.button !== 0) return; // Only left click
+    if (e.button !== 0) return;
     
     const question = boardQuestions.find(q => q.id === questionId);
     if (!question) return;
@@ -129,7 +108,6 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
     }
     setDraggedItem(null);
     setIsPanning(false);
-    setIsResizing(null);
   };
 
   const handleBoardMouseDown = (e: React.MouseEvent) => {
@@ -143,43 +121,6 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     setZoom(prev => Math.max(0.1, Math.min(3, prev * delta)));
-  };
-
-  const handleResize = (questionId: number, direction: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsResizing(questionId);
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      setBoardQuestions(prev => prev.map(q => {
-        if (q.id !== questionId) return q;
-        
-        const position = q.board_position!;
-        let newWidth = position.width;
-        let newHeight = position.height;
-        
-        if (direction.includes('right')) {
-          newWidth = Math.max(250, position.width + e.movementX / zoom);
-        }
-        if (direction.includes('bottom')) {
-          newHeight = Math.max(200, position.height + e.movementY / zoom);
-        }
-        
-        return {
-          ...q,
-          board_position: { ...position, width: newWidth, height: newHeight }
-        };
-      }));
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(null);
-      saveBoardPositions();
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
   };
 
   const saveBoardPositions = async () => {
@@ -198,31 +139,6 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
   const resetView = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
-  };
-
-  const fitToScreen = () => {
-    if (boardQuestions.length === 0) return;
-    
-    const minX = Math.min(...boardQuestions.map(q => q.board_position!.x));
-    const minY = Math.min(...boardQuestions.map(q => q.board_position!.y));
-    const maxX = Math.max(...boardQuestions.map(q => q.board_position!.x + q.board_position!.width));
-    const maxY = Math.max(...boardQuestions.map(q => q.board_position!.y + q.board_position!.height));
-    
-    const contentWidth = maxX - minX;
-    const contentHeight = maxY - minY;
-    
-    const boardRect = boardRef.current?.getBoundingClientRect();
-    if (!boardRect) return;
-    
-    const scaleX = (boardRect.width - 100) / contentWidth;
-    const scaleY = (boardRect.height - 100) / contentHeight;
-    const newZoom = Math.min(scaleX, scaleY, 1);
-    
-    setZoom(newZoom);
-    setPan({
-      x: (boardRect.width - contentWidth * newZoom) / 2 - minX * newZoom,
-      y: (boardRect.height - contentHeight * newZoom) / 2 - minY * newZoom
-    });
   };
 
   const handleAddQuestion = async () => {
@@ -245,11 +161,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
             description: '',
             parent_id: parentId,
             user_id: user.id,
-            has_form: false,
-            form_fields: [],
-            answer_template: '',
             image_url: null,
-            image_positioning: null,
             board_position: {
               x: Math.random() * 600 + 200,
               y: Math.random() * 400 + 300,
@@ -296,25 +208,12 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
   const handleDeleteQuestion = async (questionId: number) => {
     try {
       setError(null);
-      const question = boardQuestions.find(q => q.id === questionId);
-      
-      // Delete image if exists
-      if (question?.image_url) {
-        const fileName = question.image_url.split('/').pop();
-        if (fileName) {
-          await supabase.storage
-            .from('question-images')
-            .remove([fileName]);
-        }
-      }
-
       const { error } = await supabase
         .from('questions')
         .delete()
         .eq('id', questionId);
 
       if (error) throw error;
-
       onUpdateQuestions();
     } catch (err) {
       console.error('Error deleting question:', err);
@@ -322,49 +221,10 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
     }
   };
 
-  const updateTopicImage = async (topicId: number, imageUrl: string) => {
-    try {
-      setError(null);
-      const { error } = await supabase
-        .from('questions')
-        .update({ image_url: imageUrl || null })
-        .eq('id', topicId);
-
-      if (error) throw error;
-
-      onUpdateQuestions();
-      setEditingImage(null);
-    } catch (err) {
-      console.error('Error updating topic image:', err);
-      setError('Failed to update topic image. Please try again.');
-    }
-  };
-
-  const updateImagePositioning = async (topicId: number, positioning: ImagePositioningType) => {
-    try {
-      setError(null);
-      const { error } = await supabase
-        .from('questions')
-        .update({ image_positioning: positioning })
-        .eq('id', topicId);
-
-      if (error) throw error;
-
-      onUpdateQuestions();
-      setPositioningImage(null);
-    } catch (err) {
-      console.error('Error updating image positioning:', err);
-      setError('Failed to update image positioning. Please try again.');
-    }
-  };
-
-  // Calculate arrow paths from parent to children
   const getArrowPath = (fromX: number, fromY: number, toX: number, toY: number) => {
     const dx = toX - fromX;
     const dy = toY - fromY;
-    const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // Control points for curved arrow
     const controlX1 = fromX + dx * 0.3;
     const controlY1 = fromY;
     const controlX2 = toX - dx * 0.3;
@@ -377,8 +237,29 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
 
   return (
     <div className="w-full h-screen bg-gray-100 relative overflow-hidden">
+      {/* Breadcrumbs */}
+      <nav className="absolute top-4 left-4 right-4 z-20 flex items-center space-x-2 text-sm text-gray-600 bg-white rounded-lg shadow-lg p-3">
+        <button
+          onClick={() => onBreadcrumbClick(-1)}
+          className="hover:text-indigo-600 font-medium"
+        >
+          Главная
+        </button>
+        {breadcrumbs.map((crumb, index) => (
+          <React.Fragment key={crumb.id}>
+            <ChevronRight className="w-4 h-4" />
+            <button
+              onClick={() => onBreadcrumbClick(index)}
+              className="hover:text-indigo-600"
+            >
+              {crumb.content}
+            </button>
+          </React.Fragment>
+        ))}
+      </nav>
+
       {/* Toolbar */}
-      <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg p-2 flex items-center gap-2">
+      <div className="absolute top-20 left-4 z-10 bg-white rounded-lg shadow-lg p-2 flex items-center gap-2">
         <button
           onClick={() => setShowAddForm(true)}
           className="p-2 hover:bg-gray-100 rounded text-green-600"
@@ -409,13 +290,6 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
           onClick={resetView}
           className="p-2 hover:bg-gray-100 rounded"
           title="Сбросить вид"
-        >
-          <RotateCw className="w-4 h-4" />
-        </button>
-        <button
-          onClick={fitToScreen}
-          className="p-2 hover:bg-gray-100 rounded"
-          title="Вместить в экран"
         >
           <Eye className="w-4 h-4" />
         </button>
@@ -590,22 +464,12 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
             >
               {/* Content */}
               <div className="p-4 h-full flex flex-col">
-                {question.image_url && editingImage !== question.id && (
+                {question.image_url && (
                   <div className="w-full h-20 mb-3 overflow-hidden rounded">
                     <img
                       src={question.image_url}
                       alt=""
                       className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-
-                {editingImage === question.id && (
-                  <div className="mb-3">
-                    <ImageUpload
-                      currentImage={question.image_url}
-                      onUpload={(url) => updateTopicImage(question.id, url)}
-                      onCancel={() => setEditingImage(null)}
                     />
                   </div>
                 )}
@@ -655,11 +519,6 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
                     
                     {/* Actions */}
                     <div className="flex flex-wrap gap-1 mt-auto">
-                      {question.has_form && (
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                          Форма
-                        </span>
-                      )}
                       {hasSubtopics(question.id) && (
                         <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">
                           {questions.filter(q => q.parent_id === question.id).length} подтем
@@ -685,38 +544,6 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
                   >
                     <Edit className="w-3 h-3" />
                   </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingImage(question.id);
-                    }}
-                    className="p-1 bg-green-600 text-white rounded hover:bg-green-700"
-                    title="Изображение"
-                  >
-                    <ImageIcon className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowFormSettings(question.id);
-                    }}
-                    className="p-1 bg-purple-600 text-white rounded hover:bg-purple-700"
-                    title="Форма"
-                  >
-                    <Settings className="w-3 h-3" />
-                  </button>
-                  {question.has_form && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setShowForm(question.id);
-                      }}
-                      className="p-1 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                      title="Заполнить форму"
-                    >
-                      <FormInput className="w-3 h-3" />
-                    </button>
-                  )}
                   {hasSubtopics(question.id) && onNavigateToSubboard && (
                     <button
                       onClick={(e) => {
@@ -744,25 +571,6 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
                 </div>
               )}
 
-              {/* Resize handles */}
-              {!draggedItem && editingQuestion !== question.id && (
-                <>
-                  <div
-                    className="absolute bottom-0 right-0 w-3 h-3 bg-gray-400 cursor-se-resize opacity-0 hover:opacity-100 transition-opacity"
-                    onMouseDown={(e) => handleResize(question.id, 'bottom-right', e)}
-                    style={{ clipPath: 'polygon(100% 0, 100% 100%, 0 100%)' }}
-                  />
-                  <div
-                    className="absolute bottom-0 right-0 w-4 h-1 cursor-s-resize opacity-0 hover:opacity-50 hover:bg-gray-400 transition-all"
-                    onMouseDown={(e) => handleResize(question.id, 'bottom', e)}
-                  />
-                  <div
-                    className="absolute bottom-0 right-0 w-1 h-4 cursor-e-resize opacity-0 hover:opacity-50 hover:bg-gray-400 transition-all"
-                    onMouseDown={(e) => handleResize(question.id, 'right', e)}
-                  />
-                </>
-              )}
-
               {/* Move handle */}
               {editingQuestion !== question.id && (
                 <div className="absolute top-2 left-2 opacity-0 hover:opacity-100 transition-opacity">
@@ -780,39 +588,9 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
         <div>• Перетаскивайте карточки для перемещения</div>
         <div>• Используйте колесо мыши для масштабирования</div>
         <div>• Перетаскивайте фон для панорамирования</div>
-        <div>• Тяните за углы карточек для изменения размера</div>
         <div>• Наведите на карточку для действий</div>
         <div>• Оранжевая кнопка → открыть подтемы</div>
       </div>
-
-      {/* Modals */}
-      {showForm !== null && (
-        <QuestionForm
-          questionId={showForm}
-          formFields={boardQuestions.find(q => q.id === showForm)?.form_fields || []}
-          answerTemplate={boardQuestions.find(q => q.id === showForm)?.answer_template || ''}
-          onClose={() => setShowForm(null)}
-        />
-      )}
-
-      {showFormSettings !== null && (
-        <FormSettings
-          questionId={showFormSettings}
-          initialFields={boardQuestions.find(q => q.id === showFormSettings)?.form_fields || []}
-          initialTemplate={boardQuestions.find(q => q.id === showFormSettings)?.answer_template || ''}
-          onClose={() => setShowFormSettings(null)}
-          onUpdate={onUpdateQuestions}
-        />
-      )}
-
-      {positioningImage !== null && (
-        <ImagePositioning
-          imageUrl={boardQuestions.find(q => q.id === positioningImage)?.image_url || ''}
-          initialPositioning={boardQuestions.find(q => q.id === positioningImage)?.image_positioning || undefined}
-          onSave={(positioning) => updateImagePositioning(positioningImage, positioning)}
-          onClose={() => setPositioningImage(null)}
-        />
-      )}
     </div>
   );
 }

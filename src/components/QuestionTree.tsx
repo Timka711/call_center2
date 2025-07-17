@@ -1,22 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, ChevronDown, ChevronRight, X, ChevronLast, FormInput, Settings, Image as ImageIcon, Move } from 'lucide-react';
-import { QuestionForm } from './QuestionForm';
-import { FormSettings } from './FormSettings';
-import { ImageUpload } from './ImageUpload';
-import { ImagePositioning, ImagePositioning as ImagePositioningType } from './ImagePositioning';
-import { PositionedImage } from './PositionedImage';
+import { Plus, ChevronRight } from 'lucide-react';
 import { MiroBoard } from './MiroBoard';
 import { WaveBackground } from './WaveBackground';
 import { CallCenterLoader } from './CallCenterLoader';
-
-interface FormField {
-  id: string;
-  label: string;
-  type: 'text' | 'number' | 'date' | 'select';
-  options?: string[];
-  required?: boolean;
-}
 
 interface Question {
   id: number;
@@ -25,11 +12,13 @@ interface Question {
   parent_id: number | null;
   created_at: string;
   user_id: string;
-  form_fields: FormField[];
-  answer_template: string;
-  has_form: boolean;
   image_url: string | null;
-  image_positioning: ImagePositioningType | null;
+  board_position?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 }
 
 export function QuestionTree() {
@@ -56,7 +45,6 @@ export function QuestionTree() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-
       setQuestions(data || []);
     } catch (err) {
       console.error('Error fetching questions:', err);
@@ -86,11 +74,13 @@ export function QuestionTree() {
             description: '',
             parent_id: selectedQuestion,
             user_id: user.id,
-            has_form: false,
-            form_fields: [],
-            answer_template: '',
             image_url: null,
-            image_positioning: null
+            board_position: selectedQuestion ? {
+              x: Math.random() * 600 + 200,
+              y: Math.random() * 400 + 300,
+              width: 320,
+              height: 240
+            } : null
           },
         ]);
 
@@ -106,16 +96,10 @@ export function QuestionTree() {
 
   const handleQuestionClick = (question: Question) => {
     if (hasSubtopics(question.id)) {
-      // If question has subtopics, show board
       const newBreadcrumbs = [...breadcrumbs, question];
       setBreadcrumbs(newBreadcrumbs);
       setSelectedQuestion(question.id);
       setBoardStack([question.id]);
-    } else {
-      // If no subtopics, just navigate normally
-      const newBreadcrumbs = [...breadcrumbs, question];
-      setBreadcrumbs(newBreadcrumbs);
-      setSelectedQuestion(question.id);
     }
   };
 
@@ -131,7 +115,6 @@ export function QuestionTree() {
 
   const handleBreadcrumbClick = (index: number) => {
     if (index === -1) {
-      // Clicked on "Главная"
       setBreadcrumbs([]);
       setSelectedQuestion(null);
       setBoardStack([]);
@@ -139,26 +122,12 @@ export function QuestionTree() {
       const newBreadcrumbs = breadcrumbs.slice(0, index + 1);
       setBreadcrumbs(newBreadcrumbs);
       setSelectedQuestion(newBreadcrumbs[newBreadcrumbs.length - 1]?.id || null);
-      
-      // Update board stack
-      const newBoardStack = boardStack.slice(0, index + 1);
-      setBoardStack(newBoardStack);
+      setBoardStack(boardStack.slice(0, index + 1));
     }
   };
 
   const getTopLevelQuestions = () => {
     return questions.filter(q => q.parent_id === null);
-  };
-
-  const getSubtopics = (parentId: number) => {
-    return questions.filter(q => q.parent_id === parentId);
-  };
-
-  const getCurrentQuestions = () => {
-    if (selectedQuestion === null) {
-      return getTopLevelQuestions();
-    }
-    return getSubtopics(selectedQuestion);
   };
 
   const hasSubtopics = (questionId: number) => {
@@ -176,7 +145,7 @@ export function QuestionTree() {
     );
   }
 
-  // If we have a selected question and it has subtopics, show the board
+  // Show board if we have selected question with subtopics
   if (selectedQuestion !== null && boardStack.length > 0) {
     return (
       <MiroBoard 
@@ -184,6 +153,8 @@ export function QuestionTree() {
         questions={questions}
         onUpdateQuestions={fetchQuestions}
         onNavigateToSubboard={handleNavigateToSubboard}
+        breadcrumbs={breadcrumbs}
+        onBreadcrumbClick={handleBreadcrumbClick}
       />
     );
   }
@@ -198,25 +169,27 @@ export function QuestionTree() {
         )}
 
         {/* Breadcrumbs */}
-        <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
-          <button
-            onClick={() => handleBreadcrumbClick(-1)}
-            className="hover:text-indigo-600 font-medium"
-          >
-            Главная
-          </button>
-          {breadcrumbs.map((crumb, index) => (
-            <React.Fragment key={crumb.id}>
-              <ChevronRight className="w-4 h-4" />
-              <button
-                onClick={() => handleBreadcrumbClick(index)}
-                className="hover:text-indigo-600"
-              >
-                {crumb.content}
-              </button>
-            </React.Fragment>
-          ))}
-        </nav>
+        {breadcrumbs.length > 0 && (
+          <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
+            <button
+              onClick={() => handleBreadcrumbClick(-1)}
+              className="hover:text-indigo-600 font-medium"
+            >
+              Главная
+            </button>
+            {breadcrumbs.map((crumb, index) => (
+              <React.Fragment key={crumb.id}>
+                <ChevronRight className="w-4 h-4" />
+                <button
+                  onClick={() => handleBreadcrumbClick(index)}
+                  className="hover:text-indigo-600"
+                >
+                  {crumb.content}
+                </button>
+              </React.Fragment>
+            ))}
+          </nav>
+        )}
 
         {/* Add new question form */}
         <div className="mb-6 bg-white rounded-lg shadow-md p-4">
@@ -225,7 +198,7 @@ export function QuestionTree() {
               type="text"
               value={newQuestion}
               onChange={(e) => setNewQuestion(e.target.value)}
-              placeholder={selectedQuestion ? "Добавить подтему..." : "Добавить новую тему..."}
+              placeholder="Добавить новую тему..."
               className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               onKeyPress={(e) => e.key === 'Enter' && addQuestion()}
             />
@@ -241,81 +214,43 @@ export function QuestionTree() {
 
         {/* Questions list */}
         <div className="space-y-4">
-          {getCurrentQuestions().length === 0 ? (
+          {getTopLevelQuestions().length === 0 ? (
             <div className="text-center py-12 bg-white rounded-lg shadow-md">
-              <p className="text-gray-500 text-lg">
-                {selectedQuestion ? 'Нет подтем' : 'Нет тем'}
-              </p>
-              <p className="text-gray-400 text-sm mt-2">
-                {selectedQuestion ? 'Добавьте первую подтему выше' : 'Добавьте первую тему выше'}
-              </p>
+              <p className="text-gray-500 text-lg">Нет тем</p>
+              <p className="text-gray-400 text-sm mt-2">Добавьте первую тему выше</p>
             </div>
           ) : (
-            getCurrentQuestions().map((question) => (
+            getTopLevelQuestions().map((question) => (
               <div key={question.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="p-6">
-                  {question.image_url ? (
-                    <PositionedImage
-                      imageUrl={question.image_url}
-                      positioning={question.image_positioning}
-                      containerClassName="mb-4"
+                  {question.image_url && (
+                    <div className="w-full h-48 mb-4 overflow-hidden rounded-lg">
+                      <img
+                        src={question.image_url}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 
+                      className="text-xl font-semibold text-gray-900 cursor-pointer hover:text-indigo-600"
+                      onClick={() => handleQuestionClick(question)}
                     >
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 
-                            className="text-xl font-semibold text-gray-900 cursor-pointer hover:text-indigo-600"
-                            onClick={() => handleQuestionClick(question)}
-                          >
-                            {question.content}
-                          </h3>
-                          <div className="flex items-center space-x-2">
-                            {hasSubtopics(question.id) && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                                {getSubtopics(question.id).length} подтем
-                              </span>
-                            )}
-                            {question.has_form && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Форма
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {question.description && (
-                          <p className="text-lg text-gray-800 font-medium mb-4">
-                            {question.description}
-                          </p>
-                        )}
-                      </div>
-                    </PositionedImage>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 
-                          className="text-xl font-semibold text-gray-900 cursor-pointer hover:text-indigo-600"
-                          onClick={() => handleQuestionClick(question)}
-                        >
-                          {question.content}
-                        </h3>
-                        <div className="flex items-center space-x-2">
-                          {hasSubtopics(question.id) && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                              {getSubtopics(question.id).length} подтем
-                            </span>
-                          )}
-                          {question.has_form && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              Форма
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {question.description && (
-                        <p className="text-lg text-gray-800 font-medium mb-4">
-                          {question.description}
-                        </p>
-                      )}
-                    </>
+                      {question.content}
+                    </h3>
+                    {hasSubtopics(question.id) && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                        {questions.filter(q => q.parent_id === question.id).length} подтем
+                      </span>
+                    )}
+                  </div>
+
+                  {question.description && (
+                    <p className="text-lg text-gray-800 font-medium mb-4">
+                      {question.description}
+                    </p>
                   )}
 
                   <div className="flex items-center justify-between">
