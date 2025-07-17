@@ -182,7 +182,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setZoom(prev => Math.max(0.1, Math.min(3, prev * delta));
+    setZoom(prev => Math.max(0.1, Math.min(3, prev * delta)));
   };
 
   const saveBoardPositions = async () => {
