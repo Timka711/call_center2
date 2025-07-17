@@ -45,12 +45,11 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
   const [error, setError] = useState<string | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   
-  // Добавлено состояние для автоматического расчета размеров
+  // Состояние для размеров контейнера
   const [containerSize, setContainerSize] = useState({ 
-    width: 1000, 
-    height: 800 
+    width: 2000, 
+    height: 2000 
   });
-  const positionsRef = useRef<Array<{x: number; y: number; width: number; height: number} | undefined>>([]);
 
   useEffect(() => {
     const parent = questions.find(q => q.id === parentId);
@@ -69,15 +68,15 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
     setBoardQuestions(questionsWithPositions);
   }, [questions, parentId]);
 
-  // Функция для расчета размеров контейнера на основе позиций элементов
+  // Пересчет размеров контейнера
   const calculateContainerSize = useCallback(() => {
-    // Инициализируем значения границ
+    const padding = 300; // Отступы вокруг содержимого
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
 
-    // Учитываем позицию родительского элемента
+    // Учитываем родительский элемент
     if (parentQuestion) {
       const parentPos = { x: 400, y: 100, width: 400, height: 120 };
       minX = Math.min(minX, parentPos.x);
@@ -86,7 +85,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
       maxY = Math.max(maxY, parentPos.y + parentPos.height);
     }
 
-    // Учитываем позиции всех дочерних элементов
+    // Учитываем дочерние элементы
     boardQuestions.forEach(question => {
       if (question.board_position) {
         const { x, y, width, height } = question.board_position;
@@ -97,27 +96,33 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
       }
     });
 
-    // Если нет элементов, используем значения по умолчанию
-    if (minX === Infinity) {
-      return { width: 1000, height: 800 };
+    // Если элементов нет, используем значения по умолчанию
+    if (minX === Infinity || maxX === -Infinity) {
+      return { 
+        width: 2000, 
+        height: 2000 
+      };
     }
 
-    // Добавляем отступы (200px со всех сторон)
-    const padding = 200;
     return {
-      width: maxX - minX + padding,
-      height: maxY - minY + padding
+      width: Math.max(1000, maxX - minX + padding * 2),
+      height: Math.max(800, maxY - minY + padding * 2)
     };
   }, [boardQuestions, parentQuestion]);
 
-  // Эффект для пересчета размеров при изменениях
+  // Обновление размеров при изменениях
   useEffect(() => {
     const newSize = calculateContainerSize();
     setContainerSize(newSize);
-    
-    // Сохраняем текущие позиции для сравнения
-    positionsRef.current = boardQuestions.map(q => q.board_position);
   }, [boardQuestions, parentQuestion, calculateContainerSize]);
+
+  // Обновление размеров при перемещении элементов
+  useEffect(() => {
+    if (draggedItem === null) {
+      const newSize = calculateContainerSize();
+      setContainerSize(newSize);
+    }
+  }, [draggedItem, calculateContainerSize]);
 
   const hasSubtopics = (questionId: number) => {
     return questions.some(q => q.parent_id === questionId);
@@ -177,7 +182,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setZoom(prev => Math.max(0.1, Math.min(3, prev * delta)));
+    setZoom(prev => Math.max(0.1, Math.min(3, prev * delta));
   };
 
   const saveBoardPositions = async () => {
@@ -428,7 +433,6 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: '0 0',
             position: 'relative',
-            // Используем вычисленные размеры вместо фиксированных
             width: `${containerSize.width}px`,
             height: `${containerSize.height}px`
           }}
@@ -436,7 +440,6 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
           {/* SVG for arrows */}
           <svg
             className="absolute inset-0 pointer-events-none"
-            // Растягиваем SVG на весь контейнер
             style={{ width: '100%', height: '100%' }}
           >
             <defs>
@@ -624,7 +627,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
                     }}
                     className="p-1 bg-red-600 text-white rounded hover:bg-red-700"
                     title="Удалить"
-                  >
+                    >
                     <Trash className="w-3 h-3" />
                   </button>
                 </div>
@@ -649,6 +652,11 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
         <div>• Перетаскивайте фон для панорамирования</div>
         <div>• Наведите на карточку для действий</div>
         <div>• Оранжевая кнопка → открыть подтемы</div>
+      </div>
+
+      {/* Debug info */}
+      <div className="absolute top-20 right-4 z-10 bg-white rounded-lg shadow-lg p-2 text-xs">
+        Размер: {Math.round(containerSize.width)}x{Math.round(containerSize.height)}px
       </div>
     </div>
   );
