@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Move, ZoomIn, ZoomOut, Plus, Save, Grid, Eye, X, Edit, Trash, ArrowRight, ChevronRight } from 'lucide-react';
 
