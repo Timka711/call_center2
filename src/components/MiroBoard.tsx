@@ -82,7 +82,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
       const contentHeight = parentContentRef.current.scrollHeight;
       
       // Рассчитываем ширину (минимальная 400px, максимальная 600px)
-      const contentWidth = Math.max(800, Math.min(1200, parentContentRef.current.scrollWidth));
+      const contentWidth = Math.max(600, Math.min(1000, parentContentRef.current.scrollWidth));
       
       // Добавляем вертикальный отступ
       const height = Math.max(120, contentHeight + 40);
