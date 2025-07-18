@@ -51,6 +51,13 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
     height: 2000 
   });
 
+  // Реф и состояние для размеров родительской карточки
+  const parentContentRef = useRef<HTMLDivElement>(null);
+  const [parentDimensions, setParentDimensions] = useState({ 
+    width: 400, 
+    height: 120 
+  });
+
   useEffect(() => {
     const parent = questions.find(q => q.id === parentId);
     setParentQuestion(parent || null);
@@ -68,6 +75,25 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
     setBoardQuestions(questionsWithPositions);
   }, [questions, parentId]);
 
+  // Эффект для расчета размеров родительской карточки
+  useEffect(() => {
+    if (parentContentRef.current && parentQuestion) {
+      // Рассчитываем необходимую высоту на основе содержимого
+      const contentHeight = parentContentRef.current.scrollHeight;
+      
+      // Рассчитываем ширину (минимальная 400px, максимальная 600px)
+      const contentWidth = Math.max(400, Math.min(600, parentContentRef.current.scrollWidth));
+      
+      // Добавляем вертикальный отступ
+      const height = Math.max(120, contentHeight + 40);
+      
+      setParentDimensions({
+        width: contentWidth,
+        height: height
+      });
+    }
+  }, [parentQuestion]);
+
   // Пересчет размеров контейнера
   const calculateContainerSize = useCallback(() => {
     const padding = 300; // Отступы вокруг содержимого
@@ -78,11 +104,10 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
 
     // Учитываем родительский элемент
     if (parentQuestion) {
-      const parentPos = { x: 400, y: 100, width: 400, height: 120 };
-      minX = Math.min(minX, parentPos.x);
-      minY = Math.min(minY, parentPos.y);
-      maxX = Math.max(maxX, parentPos.x + parentPos.width);
-      maxY = Math.max(maxY, parentPos.y + parentPos.height);
+      minX = Math.min(minX, 400);
+      minY = Math.min(minY, 100);
+      maxX = Math.max(maxX, 400 + parentDimensions.width);
+      maxY = Math.max(maxY, 100 + parentDimensions.height);
     }
 
     // Учитываем дочерние элементы
@@ -108,13 +133,13 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
       width: Math.max(1000, maxX - minX + padding * 2),
       height: Math.max(800, maxY - minY + padding * 2)
     };
-  }, [boardQuestions, parentQuestion]);
+  }, [boardQuestions, parentQuestion, parentDimensions]);
 
   // Обновление размеров при изменениях
   useEffect(() => {
     const newSize = calculateContainerSize();
     setContainerSize(newSize);
-  }, [boardQuestions, parentQuestion, calculateContainerSize]);
+  }, [boardQuestions, parentQuestion, parentDimensions, calculateContainerSize]);
 
   // Обновление размеров при перемещении элементов
   useEffect(() => {
@@ -182,7 +207,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setZoom(prev => Math.max(0.1, Math.min(3, prev * delta)));
+    setZoom(prev => Math.max(0.1, Math.min(3, prev * delta));
   };
 
   const saveBoardPositions = async () => {
@@ -295,7 +320,12 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
     return `M ${fromX} ${fromY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${toX} ${toY}`;
   };
 
-  const parentPosition = parentQuestion ? { x: 400, y: 100, width: 400, height: 120 } : null;
+  const parentPosition = parentQuestion ? { 
+    x: 400, 
+    y: 100, 
+    width: parentDimensions.width, 
+    height: parentDimensions.height 
+  } : null;
 
   return (
     <div className="w-full h-screen bg-gray-100 relative overflow-hidden">
@@ -491,7 +521,11 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
                 zIndex: 10
               }}
             >
-              <div className="p-6 h-full flex flex-col justify-center">
+              {/* Скрытый элемент для измерения размеров контента */}
+              <div 
+                ref={parentContentRef}
+                className="invisible absolute"
+              >
                 <div className="flex items-center mb-2">
                   <div className="w-3 h-3 bg-white rounded-full mr-2"></div>
                   <span className="text-sm font-medium opacity-90">Родительская тема</span>
@@ -499,6 +533,22 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
                 <h2 className="text-xl font-bold mb-2">{parentQuestion.content}</h2>
                 {parentQuestion.description && (
                   <p className="text-sm opacity-90">{parentQuestion.description}</p>
+                )}
+              </div>
+              
+              {/* Фактическое отображаемое содержимое */}
+              <div className="p-6 h-full flex flex-col justify-center overflow-hidden">
+                <div className="flex items-center mb-2">
+                  <div className="w-3 h-3 bg-white rounded-full mr-2"></div>
+                  <span className="text-sm font-medium opacity-90">Родительская тема</span>
+                </div>
+                <h2 className="text-xl font-bold mb-2 break-words">
+                  {parentQuestion.content}
+                </h2>
+                {parentQuestion.description && (
+                  <p className="text-sm opacity-90 break-words overflow-auto max-h-[100px]">
+                    {parentQuestion.description}
+                  </p>
                 )}
               </div>
             </div>
@@ -627,7 +677,7 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
                     }}
                     className="p-1 bg-red-600 text-white rounded hover:bg-red-700"
                     title="Удалить"
-                    >
+                  >
                     <Trash className="w-3 h-3" />
                   </button>
                 </div>
@@ -656,7 +706,9 @@ export function MiroBoard({ parentId, questions, onUpdateQuestions, onNavigateTo
 
       {/* Debug info */}
       <div className="absolute top-20 right-4 z-10 bg-white rounded-lg shadow-lg p-2 text-xs">
-        Размер: {Math.round(containerSize.width)}x{Math.round(containerSize.height)}px
+        Размер контейнера: {Math.round(containerSize.width)}x{Math.round(containerSize.height)}px
+        <br />
+        Размер родителя: {Math.round(parentDimensions.width)}x{Math.round(parentDimensions.height)}px
       </div>
     </div>
   );
